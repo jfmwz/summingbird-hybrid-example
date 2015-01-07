@@ -6,26 +6,27 @@ import com.twitter.util.Await
 import org.slf4j.LoggerFactory
 
 /**
-  * The following object contains code to execute the Summingbird
-  * WordCount job defined in ExampleJob.scala on a hybrid
-  * cluster.
-  */
+ * The following object contains code to execute the Summingbird
+ * WordCount job defined in ExampleJob.scala on a hybrid
+ * cluster.
+ */
 object HybridRunner {
   @transient private val logger = LoggerFactory.getLogger(this.getClass)
 
   /**
-    * These imports bring the requisite serialization injections, the
-    * time extractor and the batcher into implicit scope. This is
-    * required for the dependency injection pattern used by the
-    * Summingbird Scalding platform.
-    */
+   * These imports bring the requisite serialization injections, the
+   * time extractor and the batcher into implicit scope. This is
+   * required for the dependency injection pattern used by the
+   * Summingbird Scalding platform.
+   */
+
   import Serialization._, ViewCount._
 
   /**
-    * The ClientStore combines results from the offline store
-    * with the results for any unprocessed batches from the
-    * online store.
-    */
+   * The ClientStore combines results from the offline store
+   * with the results for any unprocessed batches from the
+   * online store.
+   */
   val store = ClientStore(
     ScaldingRunner.servingStore,
     StormRunner.viewCountStore,
@@ -46,7 +47,7 @@ object HybridRunner {
       val online = Await.result {
         StormRunner.viewCountStore.get(lookId -> batch)
       }
-      logger.info("Online: %s".format((batch,online)))
+      logger.info("Online: %s".format((batch, online)))
     }
 
     val hybrid = lookup(lookId)
@@ -56,7 +57,7 @@ object HybridRunner {
   }
 
   def lookupAll() = {
-    store.multiGet((0L to (MaxId - 1)).toSet).map { case (k,v) =>
+    store.multiGet((0L to (MaxId - 1)).toSet).map { case (k, v) =>
       logger.info(k + " : " + Await.result(v))
     }
   }
@@ -66,7 +67,7 @@ object HybridRunner {
 object RunHybrid extends App {
   @transient private val logger = LoggerFactory.getLogger(this.getClass)
 
-  import java.util.concurrent.{CyclicBarrier, Executors,TimeUnit}
+  import java.util.concurrent.{CyclicBarrier, Executors, TimeUnit}
   import com.twitter.summingbird.storm
   import summingbird.proto.ViewCount._
 
@@ -85,20 +86,32 @@ object RunHybrid extends App {
 
   // start ingestion
   executor.submit(new Runnable {
-    def run = try { Ingestion.run(() => barrier.await()) } catch { case e: Throwable => logger.error("ingestion error", e) }
+    def run = try {
+      Ingestion.run(() => barrier.await())
+    } catch {
+      case e: Throwable => logger.error("ingestion error", e)
+    }
   })
 
 
   // start storm processing
   // not really sure if this needs a separate thread or if storm.Executor does that
   executor.submit(new Runnable {
-    def run = try { storm.Executor(Array("--local"), StormRunner(_)) } catch { case e: Throwable => logger.error("storm error", e) }
+    def run = try {
+      storm.Executor(Array("--local"), StormRunner(_))
+    } catch {
+      case e: Throwable => logger.error("storm error", e)
+    }
   })
 
 
   // start message generator
   executor.submit(new Runnable {
-    def run = try { DummyClickstream.run() } catch { case e: Throwable => logger.error("dummy clickstream error", e) }
+    def run = try {
+      DummyClickstream.run()
+    } catch {
+      case e: Throwable => logger.error("dummy clickstream error", e)
+    }
   })
 
 
@@ -107,7 +120,11 @@ object RunHybrid extends App {
     def run = {
       while (true) {
         barrier.await()
-        try { ScaldingRunner.runOnce } catch { case e: Throwable => logger.error("batch failure", e) }
+        try {
+          ScaldingRunner.runOnce
+        } catch {
+          case e: Throwable => logger.error("batch failure", e)
+        }
       }
     }
   })
@@ -116,22 +133,24 @@ object RunHybrid extends App {
   // run sanity checks
   executor.scheduleAtFixedRate(
     new Runnable {
-      def run = { try {
-        logger.info("Sanity Check")
-        logger.info("lookupDebug(7)")
-        HybridRunner.lookupDebug(7)
+      def run = {
+        try {
+          logger.info("Sanity Check")
+          logger.info("lookupDebug(7)")
+          HybridRunner.lookupDebug(7)
 
-        logger.info("Events Produced: " + DummyClickstream.produced)
-        logger.info("Events Ingested: " + Ingestion.ingested)
+          logger.info("Events Produced: " + DummyClickstream.produced)
+          logger.info("Events Ingested: " + Ingestion.ingested)
 
-        val ids = 0L to (MaxId - 1)
-        logger.info("Events Counted (offline): " + ScaldingRunner.servingStore.multiGet(ids.toSet).map(kv => Await.result(kv._2).map(_._2).getOrElse(0L)).sum)
-        logger.info("Events Counted (online): " + StormRunner.viewCountStore.multiGet(ids.map(_ -> batcher.currentBatch).toSet).map(kv => Await.result(kv._2).getOrElse(0L)).sum)
-        logger.info("Events Counted (hybrid): " + HybridRunner.store.multiGet(ids.toSet).map(kv => Await.result(kv._2).getOrElse(0L)).sum)
+          val ids = 0L to (MaxId - 1)
+          logger.info("Events Counted (offline): " + ScaldingRunner.servingStore.multiGet(ids.toSet).map(kv => Await.result(kv._2).map(_._2).getOrElse(0L)).sum)
+          logger.info("Events Counted (online): " + StormRunner.viewCountStore.multiGet(ids.map(_ -> batcher.currentBatch).toSet).map(kv => Await.result(kv._2).getOrElse(0L)).sum)
+          logger.info("Events Counted (hybrid): " + HybridRunner.store.multiGet(ids.toSet).map(kv => Await.result(kv._2).getOrElse(0L)).sum)
+        }
+        catch {
+          case e: Throwable => logger.error("sanity check failure", e)
+        }
       }
-      catch {
-        case e: Throwable => logger.error("sanity check failure", e)
-      }}
     },
     1, 1, TimeUnit.MINUTES
   )
