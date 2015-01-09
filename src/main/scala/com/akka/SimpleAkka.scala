@@ -11,7 +11,9 @@ class SimpleAkka(myName: String) extends Actor {
   def receive = {
     // (2) changed these println statements
     case "hello" => println("hello from %s".format(myName))
-    case _ => println("'huh?', said %s".format(myName))
+    case _ => {
+      println("'huh?', said %s".format(myName))
+    }
   }
 }
 
@@ -21,5 +23,6 @@ object Main extends App {
   val helloActor = system.actorOf(Props(new SimpleAkka("Fred")), name = "helloactor")
   helloActor ! "hello"
   helloActor ! "buenos dias"
+
 }
 
