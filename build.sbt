@@ -38,6 +38,13 @@ libraryDependencies ++= Seq(
     exclude("com.sun.jmx", "jmxri")
 )
 
+libraryDependencies ++= Seq(
+  "com.typesafe.slick" %% "slick" % "2.1.0",
+  "org.slf4j" % "slf4j-nop" % "1.6.4",
+  "com.github.seratch" %% "awscala" % "0.4.+",
+  "com.typesafe.akka" %% "akka-actor" % "2.2-M1"
+)
+
 resolvers ++= Seq(
   Opts.resolver.sonatypeSnapshots,
   Opts.resolver.sonatypeReleases,
